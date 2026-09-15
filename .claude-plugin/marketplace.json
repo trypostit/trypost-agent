@@ -1,0 +1,20 @@
+{
+  "name": "trypost-agent",
+  "owner": {
+    "name": "Paulo Castellano",
+    "email": "hello@trypost.it"
+  },
+  "metadata": {
+    "description": "TryPost social media scheduling skill for drafting, scheduling, and publishing posts across 12 platforms",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "trypost",
+      "description": "Social media scheduling for AI agents. Draft, schedule, publish, preview, and track posts across Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Threads, Pinterest, Bluesky, Mastodon, Telegram, and Discord via the hosted TryPost MCP server.",
+      "source": "./",
+      "strict": false,
+      "skills": ["./"]
+    }
+  ]
+}

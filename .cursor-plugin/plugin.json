@@ -1,0 +1,42 @@
+{
+  "name": "trypost",
+  "version": "1.0.0",
+  "description": "Social media scheduling for AI agents. Draft, schedule, publish, preview, and track posts across Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Threads, Pinterest, Bluesky, Mastodon, Telegram, and Discord via the hosted TryPost MCP server.",
+  "author": {
+    "name": "Paulo Castellano",
+    "email": "hello@trypost.it"
+  },
+  "homepage": "https://trypost.it",
+  "repository": "https://github.com/trypostit/trypost-agent",
+  "license": "AGPL-3.0",
+  "logo": "assets/logo.svg",
+  "keywords": [
+    "trypost",
+    "social-media",
+    "scheduling",
+    "automation",
+    "ai-agent",
+    "mcp",
+    "marketing",
+    "content",
+    "instagram",
+    "facebook",
+    "linkedin",
+    "twitter",
+    "x",
+    "tiktok",
+    "youtube",
+    "threads",
+    "pinterest",
+    "bluesky",
+    "mastodon",
+    "telegram",
+    "discord"
+  ],
+  "skills": ["./skills/trypost"],
+  "mcpServers": {
+    "trypost": {
+      "url": "https://app.trypost.it/mcp/trypost"
+    }
+  }
+}
