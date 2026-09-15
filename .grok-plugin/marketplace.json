@@ -3,7 +3,7 @@
   "description": "TryPost social media scheduling for AI agents — draft, schedule, and publish posts across 12 platforms",
   "owner": {
     "name": "Paulo Castellano",
-    "email": "hello@trypost.it"
+    "email": "paulo@trypost.it"
   },
   "plugins": [
     {
