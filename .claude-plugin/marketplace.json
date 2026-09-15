@@ -2,7 +2,7 @@
   "name": "trypost-agent",
   "owner": {
     "name": "Paulo Castellano",
-    "email": "hello@trypost.it"
+    "email": "paulo@trypost.it"
   },
   "metadata": {
     "description": "TryPost social media scheduling skill for drafting, scheduling, and publishing posts across 12 platforms",
