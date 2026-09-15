@@ -65,11 +65,11 @@ Connect or disconnect networks in the TryPost app (Accounts). MCP can only list 
 
 ## Not in MCP
 
-Do not invent tools for: connecting accounts, detaching media, duplicating a post, post templates, brand profile, Unsplash/Giphy, team invites, billing, or in-app AI generation. Signatures have no `signature_id` on create/update — append the text to `content` yourself.
+Do not invent tools for: connecting accounts, detaching media, duplicating a post, post templates, brand profile, Unsplash/Giphy, team invites, billing, in-app AI generation, or account-level analytics. Metrics are per published post via `get-post-metrics-tool` only. Signatures have no `signature_id` on create/update — append the text to `content` yourself.
 
 ## Networks
 
-`list-social-accounts-tool` returns connected accounts (`id`, `platform`, `display_name`, `username`, `is_active`, `status`). Platform slugs:
+`list-social-accounts-tool` returns connected accounts (`id`, `platform`, `display_name`, `username`, `is_active`, `status`). `status` is `connected` \| `disconnected` \| `token_expired`. Skip expired/disconnected accounts and tell the user to reconnect in the app (Accounts). Platform slugs:
 
 | Slug | Network |
 |---|---|
@@ -102,17 +102,17 @@ Do not invent tools for: connecting accounts, detaching media, duplicating a pos
 | Bluesky | `bluesky_post` | no | No mixed image+video. Max 4 media. |
 | Mastodon | `mastodon_post` | no | Max 4 media. |
 | Telegram | `telegram_post` | no | HTML sanitization at preview/publish. |
-| Discord | `discord_message` | no | `channel_id` required. |
+| Discord | `discord_message` | no | `channel_id` required. Channels are text/announcement the bot can post to. |
 
-Always confirm live limits with `list-content-types-tool`. GIFs stay GIFs only on X, Bluesky, Mastodon, Discord, and Telegram.
+Always confirm live limits with `list-content-types-tool`. Hard caps vary a lot (X 280, Bluesky 300, Threads/Mastodon 500, YouTube ~100, LinkedIn 3000) — `preview-post-tool` is the check. GIFs stay GIFs only on X, Bluesky, Mastodon, Discord, and Telegram.
 
 ## Posts
 
 | Tool | Notes |
 |---|---|
-| `list-posts-tool` | Newest `scheduled_at` first. Filters: `status` (`draft` \| `scheduled` \| `published` \| `failed`), `search` (content substring), `limit` (1–100, default 50). `published` includes partially published. No `page`. |
-| `get-post-tool` | Full post: platforms (with `meta` and `post_platform.id`), media, labels. |
-| `create-post-tool` | Optional `content` (max 10 000), optional `scheduled_at`, `label_ids[]`, `platforms[]` (`social_account_id` + `content_type` + optional `meta`). Inactive accounts and mismatched types are rejected. |
+| `list-posts-tool` | Newest `scheduled_at` first. Filters: `status` (`draft` \| `scheduled` \| `published` \| `failed`), `search` (content substring), `limit` (1–100, default 50). `published` includes `partially_published`. No filter for `publishing`. No `page`. |
+| `get-post-tool` | Full post: platforms (with `meta` and `post_platform.id`), media, labels. Status may be `draft`, `scheduled`, `publishing`, `published`, `partially_published`, or `failed`. |
+| `create-post-tool` | Optional `content` (max 10 000), optional `scheduled_at`, `label_ids[]`, `platforms[]` (`social_account_id` + `content_type` + optional `meta`). Platforms may be omitted (empty draft). Inactive accounts and mismatched types are rejected. |
 | `update-post-tool` | `post_id` plus fields to change. Platform entries use `id` (the `post_platform` UUID). Platforms not listed are **disabled**. `meta` is merged; send `null` to clear a key. `label_ids[]` **replaces** all labels. `status` may be `draft` (unschedule) or `scheduled` only. Setting `scheduled` validates media vs every enabled type. Cannot edit a finalized / publishing post. |
 | `publish-post-tool` | Needs ≥1 enabled platform. Validates required meta and media vs each content type. |
 | `preview-post-tool` | Same sanitization as publish (LinkedIn Unicode bold, Telegram HTML, X link defusing). Nothing is truncated — compare `sanitized_length` vs `max_content_length`. |
@@ -258,7 +258,7 @@ Resolve `board_id` or `channel_id` first, set it on create, then attach required
 5. `update-post-tool` uses `post_platform.id`, not `social_account_id`.
 6. TikTok / Pinterest / Discord fail publish without required meta.
 7. Type must match the account (no `x_post` on LinkedIn; LinkedIn Page is `linkedin_page_post`).
-8. Inactive accounts are rejected.
+8. Inactive (`is_active=false`) or `token_expired` / `disconnected` accounts fail publish — reconnect in the app.
 9. Media type must be accepted by **every** enabled platform.
 10. Bluesky and LinkedIn forbid mixed image+video (or PDF) on one post.
 11. Stories have no viewer-facing caption.
