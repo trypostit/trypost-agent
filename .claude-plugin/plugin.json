@@ -7,7 +7,7 @@
     "email": "paulo@trypost.it",
     "url": "https://trypost.it"
   },
-  "homepage": "https://docs.trypost.it/ai/introduction",
+  "homepage": "https://trypost.it",
   "repository": "https://github.com/trypostit/trypost-agent",
   "license": "AGPL-3.0",
   "skills": ["./skills/trypost"],

@@ -1,7 +1,7 @@
 ---
 name: trypost
 description: Schedules and publishes social media posts through TryPost's hosted MCP server. Use when the user wants to draft, schedule, publish, preview, or analyze posts across Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Threads, Pinterest, Bluesky, Mastodon, Telegram, or Discord, or when they mention TryPost, social accounts, signatures, labels, webhooks, or repurpose.
-homepage: https://docs.trypost.it/ai/introduction
+homepage: https://trypost.it
 metadata: {"openclaw":{"emoji":"📅","requires":{"bins":[],"env":[]}}}
 ---
 
