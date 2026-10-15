@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { frontMatter, mcpUrl, networkCount, read } from './helpers.ts';
+import { exists, frontMatter, mcpUrl, networkCount, read, readJson, toolNames, unqualifiedToolNames } from './helpers.ts';
+import type { PluginManifest } from './types.ts';
 
 const networks = [
   'Instagram',
@@ -53,5 +54,51 @@ describe('skill', () => {
     for (const term of retiredTerms) {
       assert.ok(!skill.includes(term), `${term} belongs to the pre-2.0 model`);
     }
+  });
+});
+
+describe('skill tool names and sign-in', () => {
+  const skill = read('skills/trypost/SKILL.md');
+
+  test('names every tool with its trypost server', () => {
+    assert.deepEqual(unqualifiedToolNames(skill), []);
+  });
+
+  test('explains where the tools come from and how the user signs in', () => {
+    assert.ok(skill.includes('## Connecting'));
+    assert.ok(skill.includes('mcp__trypost__list_social_accounts_tool'));
+    assert.ok(skill.includes('https://app.trypost.it/login'));
+    assert.ok(skill.includes('https://app.trypost.it/register'));
+  });
+});
+
+describe('setup skill', () => {
+  const setup = read('skills/setup/SKILL.md');
+  const { name, description = '' } = frontMatter('skills/setup/SKILL.md');
+  const onboardingSkill = readJson<PluginManifest>('.codex-plugin/plugin.json').extensions?.['com.openai']?.onboardingSkill ?? '';
+
+  test('is the onboarding skill the OpenAI manifest declares', () => {
+    assert.equal(onboardingSkill, './skills/setup/SKILL.md');
+    assert.ok(exists(onboardingSkill));
+  });
+
+  test('front matter is valid', () => {
+    assert.equal(name, 'trypost-setup');
+    assert.ok(description.length > 0 && description.length <= 1024);
+  });
+
+  test('only uses tools the main skill documents, by their qualified names', () => {
+    const documented = toolNames(read('skills/trypost/SKILL.md'));
+
+    assert.deepEqual(unqualifiedToolNames(setup), []);
+
+    for (const tool of toolNames(setup)) {
+      assert.ok(documented.has(tool), `${tool} is not in the main skill`);
+    }
+  });
+
+  test('tells the user how to sign in and where to create an account', () => {
+    assert.ok(setup.includes('https://app.trypost.it/login'));
+    assert.ok(setup.includes('https://app.trypost.it/register'));
   });
 });
