@@ -1,0 +1,81 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Manifest and skill tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Run the test suite
+        run: node --test
+
+  typecheck:
+    name: TypeScript type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install TypeScript
+        run: npm install --no-save --no-package-lock typescript@7.0.2 @types/node@24.19.0
+
+      - name: Type-check the tests
+        run: npx --no-install tsc -p .
+
+  claude-plugin:
+    name: Claude plugin validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.285
+
+      - name: Validate the plugin, its marketplace and its skills
+        run: |
+          claude plugin validate --strict .
+          claude plugin validate --strict .claude-plugin/plugin.json
+          claude plugin validate --strict .claude-plugin/marketplace.json
+          claude plugin validate --strict skills
+
+  openai-plugin:
+    name: OpenAI plugin package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the plugin ZIP
+        run: git archive --format=zip --prefix=trypost/ -o trypost-plugin.zip HEAD .codex-plugin .mcp.json skills assets
+
+      - name: Check the ZIP layout
+        run: |
+          unzip -l trypost-plugin.zip
+          for file in trypost/.codex-plugin/plugin.json trypost/.mcp.json trypost/skills/trypost/SKILL.md trypost/assets/icon-512.png; do
+            unzip -l trypost-plugin.zip "$file" > /dev/null || { echo "::error::$file is missing from the ZIP"; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: trypost-plugin
+          path: trypost-plugin.zip
