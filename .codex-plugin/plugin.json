@@ -27,7 +27,7 @@
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://trypost.it",
-    "supportURL": "https://docs.trypost.it",
+    "supportURL": "https://docs.trypost.it/support",
     "privacyPolicyURL": "https://trypost.it/privacy",
     "termsOfServiceURL": "https://trypost.it/terms",
     "defaultPrompt": [
