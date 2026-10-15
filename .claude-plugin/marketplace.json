@@ -5,13 +5,13 @@
     "email": "paulo@trypost.it"
   },
   "metadata": {
-    "description": "TryPost social media scheduling skill for drafting, scheduling, and publishing posts across 12 platforms",
-    "version": "1.0.0"
+    "description": "TryPost plugin for planning, scheduling and publishing social media posts",
+    "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "trypost",
-      "description": "Social media scheduling for AI agents. Draft, schedule, publish, preview, and track posts across Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Threads, Pinterest, Bluesky, Mastodon, Telegram, and Discord via the hosted TryPost MCP server.",
+      "description": "Plan, schedule and publish social media posts, manage your queue and approvals, and read post analytics in TryPost.",
       "source": "./",
       "strict": false,
       "skills": ["./"]

@@ -5,8 +5,8 @@
 <h1 align="center">TryPost Agent</h1>
 
 <p align="center">
-  Official Cursor, Claude Code, and Grok plugins for <a href="https://trypost.it">TryPost</a> —<br/>
-  draft, schedule, and publish across 12 networks from your AI assistant.
+  Official ChatGPT, Codex, Cursor, Claude Code, and Grok plugins for <a href="https://trypost.it">TryPost</a> —<br/>
+  plan, schedule, and publish social media posts from your AI assistant.
 </p>
 
 <p align="center">
@@ -41,6 +41,18 @@ grok plugin marketplace add trypostit/trypost-agent
 ```
 
 Or install from the [xAI plugin marketplace](https://github.com/xai-org/plugin-marketplace) once the listing is merged.
+
+### ChatGPT and Codex plugin
+
+This repo ships an OpenAI plugin manifest at `.codex-plugin/plugin.json`, with the MCP server and its OAuth settings in `.mcp.json`. The manifest carries the listing text, icon, and the review test cases for the [OpenAI plugin directory](https://developers.openai.com/plugins/deploy/submission).
+
+Build the ZIP to upload at [platform.openai.com/plugins](https://platform.openai.com/plugins):
+
+```bash
+git archive --format=zip --prefix=trypost/ -o trypost-plugin.zip HEAD .codex-plugin .mcp.json skills assets
+```
+
+Reviewer credentials, the demo video URL and the domain verification token are entered in the dashboard, never in the package.
 
 ### Cursor plugin
 
@@ -106,7 +118,7 @@ Guides for every client: [docs.trypost.it/ai/introduction](https://docs.trypost.
 
 Native publishing through each network's official API:
 
-Instagram · Facebook · LinkedIn · X · TikTok · YouTube Shorts · Threads · Pinterest · Bluesky · Mastodon · Telegram · Discord
+Instagram · Facebook · LinkedIn · X · TikTok · YouTube · Threads · Pinterest · Bluesky · Mastodon · Telegram · Discord · Google Business Profile
 
 ---
 
@@ -116,9 +128,11 @@ Instagram · Facebook · LinkedIn · X · TikTok · YouTube Shorts · Threads ·
 .cursor-plugin/     Cursor plugin + marketplace manifests
 .claude-plugin/     Claude Code plugin + marketplace manifests
 .grok-plugin/       Grok Build plugin + marketplace manifests
+.codex-plugin/      ChatGPT / Codex plugin manifest (OpenAI plugin directory)
+.mcp.json           MCP server + OAuth settings for the OpenAI plugin
 skills/trypost/     Agent skill (SKILL.md)
 mcp.json            Shared MCP server definition
-assets/             Logo and icon
+assets/             Logo and icons
 SKILL.md            Same skill, repo root (npx skills add / OpenClaw)
 ```
 
