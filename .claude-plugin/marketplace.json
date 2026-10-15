@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "TryPost plugin for planning, scheduling and publishing social media posts",
-    "version": "1.1.0"
+    "version": "2.0.0"
   },
   "plugins": [
     {
