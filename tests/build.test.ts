@@ -34,7 +34,7 @@ describe('OpenAI plugin build', () => {
 
     assert.equal(file, `${root}/${outputFile}`);
 
-    for (const entry of ['.codex-plugin/plugin.json', '.mcp.json', 'skills/trypost/SKILL.md', 'assets/icon-512.png']) {
+    for (const entry of ['.codex-plugin/plugin.json', '.mcp.json', 'skills/trypost/SKILL.md', 'skills/setup/SKILL.md', 'assets/icon-512.png']) {
       assert.ok(entries.includes(`trypost/${entry}`), `trypost/${entry} is missing from the ZIP`);
     }
 

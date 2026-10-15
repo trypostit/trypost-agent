@@ -55,3 +55,6 @@ export const contrastWithWhite = (hex: string): number => {
 };
 
 export const toolNames = (text: string): Set<string> => new Set(text.match(/\b[a-z-]+-tool\b/g));
+
+export const unqualifiedToolNames = (text: string): string[] =>
+  text.match(/(?<![\w:.-])[a-z]+(?:-[a-z]+)*-tool\b/g) ?? [];

@@ -47,6 +47,7 @@ export type ReviewTestCase = {
 };
 
 export type OpenAiSettings = {
+  onboardingSkill?: string;
   hooks?: unknown;
   apps?: unknown;
   review?: {

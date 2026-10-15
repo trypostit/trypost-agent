@@ -41,6 +41,7 @@
   },
   "extensions": {
     "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
       "review": {
         "test_cases": {
           "positive": [
