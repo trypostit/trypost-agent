@@ -83,7 +83,7 @@ Once the plugin is installed and you've signed in, ask in plain language:
 - "Attach https://example.com/photo.jpg to the draft, then publish"
 - "Watch my Instagram reels and republish to TikTok"
 
-The skill drives the official MCP tools (posts, media, Asset Library, signatures, labels, accounts, webhooks, repurpose, workspace). See [SKILL.md](./SKILL.md) for the full workflow.
+The skill drives the official MCP tools (posts, media, queue and posting times, approvals, ideas, labels, signatures, analytics, repurpose, webhooks, API keys, workspace). See [SKILL.md](./SKILL.md) for the full workflow.
 
 ---
 
@@ -112,6 +112,10 @@ Manual client setup (without the plugin):
 
 Guides for every client: [docs.trypost.it/ai/introduction](https://docs.trypost.it/ai/introduction).
 
+### What the plugin runs and sends
+
+The plugin runs no code on your machine. It ships a skill (instructions for the assistant) and the address of TryPost's hosted MCP server. Your assistant talks to `https://app.trypost.it` over HTTPS only, after you sign in to TryPost and approve the connection, and acts only in the workspace you picked. TryPost then publishes to the social networks connected to that workspace when you ask it to. See the [privacy policy](https://trypost.it/privacy).
+
 ---
 
 ## Supported platforms
@@ -129,25 +133,30 @@ Instagram · Facebook · LinkedIn · X · TikTok · YouTube · Threads · Pinter
 .claude-plugin/     Claude Code plugin + marketplace manifests
 .grok-plugin/       Grok Build plugin + marketplace manifests
 .codex-plugin/      ChatGPT / Codex plugin manifest (OpenAI plugin directory)
-.mcp.json           MCP server + OAuth settings for the OpenAI plugin
+.mcp.json           MCP server + OAuth settings (Claude Code and the OpenAI plugin)
 skills/trypost/     Agent skill (SKILL.md)
 mcp.json            Shared MCP server definition
 assets/             Logo and icons
 SKILL.md            Same skill, repo root (npx skills add / OpenClaw)
-tests/              Manifest, MCP, skill and packaging tests (node --test)
+tests/              Manifest, MCP, skill and packaging tests (TypeScript, node --test)
+tsconfig.json       TypeScript settings for the tests
+AGENTS.md           Rules for contributors and coding agents
 ```
 
 ---
 
 ## Development
 
-The tests use Node's built-in runner, with no dependencies:
+Everything is TypeScript, run directly by Node 24+ (no build step, no `package.json`). Read [AGENTS.md](./AGENTS.md) before changing anything.
 
 ```bash
-node --test
+node --test                 # run the tests
+
+npm install --no-save --no-package-lock typescript@7.0.2 @types/node@24.19.0
+npx tsc -p .                # type-check
 ```
 
-CI (`.github/workflows/tests.yml`) runs them on every pull request, validates the Claude plugin with `claude plugin validate --strict`, and builds the OpenAI plugin ZIP as an artifact.
+CI (`.github/workflows/tests.yml`) runs the tests and the type check on every pull request, validates the Claude plugin with `claude plugin validate --strict`, and builds the OpenAI plugin ZIP as an artifact.
 
 ---
 
