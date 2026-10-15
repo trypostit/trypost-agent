@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { contrastWithWhite, exists, pngDimensions, read, readJson, sizeOf, toolNames } from './helpers.js';
+import { contrastWithWhite, exists, pngDimensions, read, readJson, sizeOf, toolNames } from './helpers.ts';
+import type { Listing, PluginManifest } from './types.ts';
 
-const manifest = readJson('.codex-plugin/plugin.json');
-const listing = manifest.interface;
+const manifest = readJson<PluginManifest>('.codex-plugin/plugin.json');
+const listing = manifest.interface as Listing;
 const openai = manifest.extensions?.['com.openai'] ?? {};
-const testCases = openai.review?.test_cases ?? {};
+const positiveCases = openai.review?.test_cases?.positive ?? [];
+const negativeCases = openai.review?.test_cases?.negative ?? [];
 
 describe('OpenAI package', () => {
   test('name is kebab case, at most 64 characters', () => {
@@ -17,14 +19,14 @@ describe('OpenAI package', () => {
   test('description and author fit their limits', () => {
     assert.ok(manifest.description.length <= 4000);
     assert.ok(manifest.author.name.length <= 120);
-    assert.ok(manifest.author.email.length <= 320);
-    assert.match(manifest.author.url, /^https:\/\//);
+    assert.ok((manifest.author.email ?? '').length <= 320);
+    assert.match(manifest.author.url ?? '', /^https:\/\//);
   });
 
   test('declares the skills folder and the MCP configuration', () => {
     assert.equal(manifest.skills, './skills/');
     assert.equal(manifest.mcpServers, './.mcp.json');
-    assert.ok(exists(manifest.mcpServers));
+    assert.ok(exists('.mcp.json'));
   });
 
   test('ships no hooks or app references', () => {
@@ -47,8 +49,8 @@ describe('OpenAI listing', () => {
   });
 
   test('has the four https URLs that MCP review requires', () => {
-    for (const field of ['websiteURL', 'supportURL', 'privacyPolicyURL', 'termsOfServiceURL']) {
-      assert.match(listing[field], /^https:\/\/[^@\s]+$/, field);
+    for (const url of [listing.websiteURL, listing.supportURL, listing.privacyPolicyURL, listing.termsOfServiceURL]) {
+      assert.match(url, /^https:\/\/[^@\s]+$/);
     }
   });
 
@@ -69,9 +71,8 @@ describe('OpenAI listing', () => {
     assert.doesNotMatch(copy, /\$\d|pricing|free trial|discount|coupon|upgrade|subscribe/i);
   });
 
-  for (const field of ['logo', 'composerIcon']) {
-    test(`${field} is a square PNG between 48 and 4096 pixels`, () => {
-      const icon = listing[field];
+  for (const icon of [listing.logo, listing.composerIcon]) {
+    test(`${icon} is a square PNG between 48 and 4096 pixels`, () => {
       const dimensions = pngDimensions(icon);
 
       assert.match(icon, /^\.\/assets\//);
@@ -85,35 +86,35 @@ describe('OpenAI listing', () => {
 
 describe('OpenAI review', () => {
   test('has five positive and three negative test cases', () => {
-    assert.equal(testCases.positive?.length, 5);
-    assert.equal(testCases.negative?.length, 3);
+    assert.equal(positiveCases.length, 5);
+    assert.equal(negativeCases.length, 3);
   });
 
   test('every test case is complete', () => {
-    for (const testCase of testCases.positive) {
-      for (const field of ['description', 'prompt', 'tools_triggered', 'expected_behavior']) {
-        assert.ok(testCase[field]?.trim(), `"${testCase.description}" has no ${field}`);
+    for (const testCase of positiveCases) {
+      for (const value of [testCase.description, testCase.prompt, testCase.tools_triggered, testCase.expected_behavior]) {
+        assert.ok(value?.trim(), `"${testCase.description}" is incomplete`);
       }
     }
 
-    for (const testCase of testCases.negative) {
-      assert.ok(testCase.description?.trim());
-      assert.ok(testCase.prompt?.trim());
+    for (const testCase of negativeCases) {
+      assert.ok(testCase.description.trim());
+      assert.ok(testCase.prompt.trim());
     }
   });
 
   test('positive test cases only use tools the skill documents', () => {
     const documented = toolNames(read('skills/trypost/SKILL.md'));
 
-    for (const testCase of testCases.positive) {
-      for (const tool of toolNames(testCase.tools_triggered)) {
+    for (const testCase of positiveCases) {
+      for (const tool of toolNames(testCase.tools_triggered ?? '')) {
         assert.ok(documented.has(tool), `${tool} is not in the skill`);
       }
     }
   });
 
   test('declares no commerce and keeps reviewer access out of the package', () => {
-    assert.equal(openai.review.commerce, false);
+    assert.equal(openai.review?.commerce, false);
     assert.doesNotMatch(JSON.stringify(manifest), /test_credentials|reviewer_instructions|password/i);
   });
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { frontMatter, mcpUrl, networkCount, read } from './helpers.js';
+import { frontMatter, mcpUrl, networkCount, read } from './helpers.ts';
 
 const networks = [
   'Instagram',
@@ -23,7 +23,7 @@ const retiredTerms = ['platforms[]', 'post_platform', 'partially_published', 'to
 
 describe('skill', () => {
   const skill = read('skills/trypost/SKILL.md');
-  const { name, description, metadata } = frontMatter('skills/trypost/SKILL.md');
+  const { name, description = '', metadata = '' } = frontMatter('skills/trypost/SKILL.md');
 
   test('the plugin copy matches the root SKILL.md', () => {
     assert.equal(skill, read('SKILL.md'));
@@ -31,7 +31,7 @@ describe('skill', () => {
 
   test('front matter is valid', () => {
     assert.equal(name, 'trypost');
-    assert.ok(description && description.length <= 1024);
+    assert.ok(description.length > 0 && description.length <= 1024);
     assert.doesNotThrow(() => JSON.parse(metadata));
   });
 

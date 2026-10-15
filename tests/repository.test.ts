@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { describe, test } from 'node:test';
 
-import { exists, networkCount, read, readJson, root, sizeOf } from './helpers.js';
+import { exists, networkCount, read, readJson, root, sizeOf } from './helpers.ts';
+import type { PluginManifest } from './types.ts';
 
-const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
+const git = (...args: string[]): string[] =>
+  execFileSync('git', args, { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
 
 const trackedFiles = git('ls-files');
 const readme = read('README.md');
@@ -23,17 +25,17 @@ describe('README', () => {
   test('the ZIP command packs everything the OpenAI manifest needs', () => {
     const [, paths = ''] = readme.match(/git archive .+ HEAD (.+)/) ?? [];
     const packed = paths.split(' ');
-    const { mcpServers, skills, interface: listing } = readJson('.codex-plugin/plugin.json');
-    const needed = ['.codex-plugin', mcpServers, skills, listing.logo, listing.composerIcon].map((entry) =>
-      entry.replace(/^\.\//, '').replace(/\/$/, ''),
-    );
+    const manifest = readJson<PluginManifest>('.codex-plugin/plugin.json');
+    const needed = ['.codex-plugin', '.mcp.json', 'skills', manifest.interface?.logo, manifest.interface?.composerIcon];
 
-    assert.ok(packed.every(exists), `the README packs a path that does not exist: ${packed}`);
+    assert.ok(packed.every(exists), `the README packs a path that does not exist: ${packed.join(', ')}`);
 
     for (const entry of needed) {
+      const file = entry?.replace(/^\.\//, '') ?? '';
+
       assert.ok(
-        packed.some((path) => entry === path || entry.startsWith(`${path}/`)),
-        `${entry} is not packed`,
+        packed.some((path) => file === path || file.startsWith(`${path}/`)),
+        `${file} is not packed`,
       );
     }
   });
@@ -61,6 +63,13 @@ describe('repository', () => {
 
       assert.ok(sizeOf(file) < limit, `${file} is too large`);
     }
+  });
+
+  test('is written in TypeScript only', () => {
+    assert.deepEqual(
+      trackedFiles.filter((file) => /\.(js|mjs|cjs|jsx)$/.test(file)),
+      [],
+    );
   });
 
   test('has no package manifest or lockfile that would install dependencies', () => {

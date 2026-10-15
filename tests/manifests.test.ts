@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { exists, marketplaceManifests, mcpConfigs, networkCount, pluginManifests, read, readJson } from './helpers.js';
+import { exists, marketplaceManifests, mcpConfigs, networkCount, pluginManifests, read, readJson } from './helpers.ts';
+import type { Marketplace, PluginManifest } from './types.ts';
 
-const canonical = readJson('.claude-plugin/plugin.json');
+const canonical = readJson<PluginManifest>('.claude-plugin/plugin.json');
 
 describe('JSON files', () => {
   for (const file of [...pluginManifests, ...marketplaceManifests, ...mcpConfigs]) {
@@ -15,7 +16,7 @@ describe('JSON files', () => {
 
 describe('plugin manifests', () => {
   for (const file of pluginManifests) {
-    const manifest = readJson(file);
+    const manifest = readJson<PluginManifest>(file);
 
     describe(file, () => {
       test('is named trypost', () => {
@@ -33,8 +34,8 @@ describe('plugin manifests', () => {
       });
 
       test('has an author, https links and the AGPL license', () => {
-        assert.ok(manifest.author?.name);
-        assert.match(manifest.author.url, /^https:\/\//);
+        assert.ok(manifest.author.name);
+        assert.match(manifest.author.url ?? '', /^https:\/\//);
         assert.match(manifest.homepage, /^https:\/\//);
         assert.equal(manifest.repository, 'https://github.com/trypostit/trypost-agent');
         assert.equal(manifest.license, 'AGPL-3.0');
@@ -57,7 +58,7 @@ describe('plugin manifests', () => {
 
 describe('marketplace manifests', () => {
   for (const file of marketplaceManifests) {
-    const marketplace = readJson(file);
+    const marketplace = readJson<Marketplace>(file);
     const plugin = marketplace.plugins.find(({ name }) => name === 'trypost');
 
     describe(file, () => {
@@ -67,10 +68,12 @@ describe('marketplace manifests', () => {
       });
 
       test('describes and versions the plugin like its manifest', () => {
-        assert.equal(plugin.description, canonical.description);
+        assert.equal(plugin?.description, canonical.description);
 
-        for (const version of [marketplace.metadata?.version, plugin.version].filter(Boolean)) {
-          assert.equal(version, canonical.version);
+        for (const version of [marketplace.metadata?.version, plugin?.version]) {
+          if (version) {
+            assert.equal(version, canonical.version);
+          }
         }
       });
 
@@ -79,10 +82,12 @@ describe('marketplace manifests', () => {
       });
 
       test('points at paths that exist', () => {
-        const source = plugin.source.path ?? plugin.source;
+        const source = typeof plugin?.source === 'string' ? plugin.source : plugin?.source.path;
 
-        for (const entry of [source, ...(plugin.skills ?? []), plugin.logo].filter(Boolean)) {
-          assert.ok(exists(entry), `${entry} is missing`);
+        for (const entry of [source, ...(plugin?.skills ?? []), plugin?.logo]) {
+          if (entry) {
+            assert.ok(exists(entry), `${entry} is missing`);
+          }
         }
       });
     });

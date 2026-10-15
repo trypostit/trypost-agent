@@ -1,24 +1,25 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { mcpConfigs, mcpUrl, pluginManifests, readJson } from './helpers.js';
+import { mcpConfigs, mcpUrl, pluginManifests, readJson } from './helpers.ts';
+import type { McpConfig, PluginManifest } from './types.ts';
 
 describe('MCP configuration files', () => {
   for (const file of mcpConfigs) {
-    const servers = readJson(file).mcpServers;
+    const servers = readJson<McpConfig>(file).mcpServers;
 
     test(`${file} declares the hosted TryPost server over HTTP, without headers`, () => {
       assert.deepEqual(Object.keys(servers), ['trypost']);
-      assert.equal(servers.trypost.type, 'http');
-      assert.equal(servers.trypost.url, mcpUrl);
-      assert.equal(servers.trypost.headers, undefined);
+      assert.equal(servers.trypost?.type, 'http');
+      assert.equal(servers.trypost?.url, mcpUrl);
+      assert.equal(servers.trypost?.headers, undefined);
     });
   }
 });
 
 describe('MCP servers inside plugin manifests', () => {
   for (const file of pluginManifests) {
-    const servers = readJson(file).mcpServers;
+    const servers = readJson<PluginManifest>(file).mcpServers;
 
     if (typeof servers !== 'object') {
       continue;
@@ -26,19 +27,19 @@ describe('MCP servers inside plugin manifests', () => {
 
     test(`${file} points at the hosted TryPost server, without headers`, () => {
       assert.deepEqual(Object.keys(servers), ['trypost']);
-      assert.equal(servers.trypost.url, mcpUrl);
-      assert.equal(servers.trypost.headers, undefined);
+      assert.equal(servers.trypost?.url, mcpUrl);
+      assert.equal(servers.trypost?.headers, undefined);
     });
   }
 });
 
 describe('OpenAI authentication in .mcp.json', () => {
-  const server = readJson('.mcp.json').mcpServers.trypost;
-  const auth = server.extensions?.['com.openai']?.auth;
+  const server = readJson<McpConfig>('.mcp.json').mcpServers.trypost;
+  const auth = server?.extensions?.['com.openai']?.auth;
 
   test('signs in through OAuth with Dynamic Client Registration', () => {
     assert.equal(auth?.type, 'oauth');
-    assert.equal(auth.client?.mode, 'dcr');
+    assert.equal(auth?.client?.mode, 'dcr');
   });
 
   test('ships no client credentials', () => {
