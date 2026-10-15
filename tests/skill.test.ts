@@ -64,6 +64,11 @@ describe('skill tool names and sign-in', () => {
     assert.deepEqual(unqualifiedToolNames(skill), []);
   });
 
+  test('asks to search for the tools before asking the user to sign in', () => {
+    assert.ok(skill.indexOf("search the client's tools for `trypost`") > -1);
+    assert.ok(skill.indexOf("search the client's tools for `trypost`") < skill.indexOf('https://app.trypost.it/login'));
+  });
+
   test('explains where the tools come from and how the user signs in', () => {
     assert.ok(skill.includes('## Connecting'));
     assert.ok(skill.includes('mcp__trypost__list_social_accounts_tool'));
@@ -95,6 +100,11 @@ describe('setup skill', () => {
     for (const tool of toolNames(setup)) {
       assert.ok(documented.has(tool), `${tool} is not in the main skill`);
     }
+  });
+
+  test('finds the tools first and asks to sign in only when they are missing', () => {
+    assert.match(setup, /^1\. Find the TryPost tools first\./m);
+    assert.ok(setup.indexOf("Search the client's tools for `trypost`") < setup.indexOf('https://app.trypost.it/login'));
   });
 
   test('tells the user how to sign in and where to create an account', () => {

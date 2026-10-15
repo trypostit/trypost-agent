@@ -14,8 +14,8 @@ App: https://app.trypost.it
 
 ## Connecting
 
-- Every tool here comes from the `trypost` MCP server and is written `trypost:<tool>`. Clients may show the same tool in another form, for example `trypost.list-social-accounts-tool` or `mcp__trypost__list_social_accounts_tool`. If no TryPost tool is listed, search the client's tools for `trypost` before concluding they are missing: some clients load MCP tools on demand.
-- The tools are listed only once the user has connected TryPost. If they are missing, or a call asks the user to sign in, the user needs to connect TryPost from the client's plugin or connector settings: that opens TryPost's sign-in (https://app.trypost.it/login), where they pick the workspace to use. No account yet: https://app.trypost.it/register.
+- Every tool here comes from the `trypost` MCP server and is written `trypost:<tool>`. Clients may load MCP tools on demand and show them in another form, for example `trypost.list-social-accounts-tool` or `mcp__trypost__list_social_accounts_tool`. Before saying a TryPost tool is unavailable, search the client's tools for `trypost`.
+- Only when that search finds no TryPost tool, or a call asks the user to sign in, is TryPost not connected: the user connects it from the client's plugin or connector settings, which opens TryPost's sign-in (https://app.trypost.it/login), where they pick the workspace to use. No account yet: https://app.trypost.it/register.
 - The TryPost web app in a browser is not a substitute for these tools.
 
 ## Authentication
