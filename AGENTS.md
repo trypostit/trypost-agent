@@ -63,7 +63,7 @@ This repository packages TryPost as a plugin for Claude Code, Cursor, Grok, Chat
 - Review needs exactly five positive and three negative test cases. Positive cases name tools the skill documents.
 - Never mention prices, plans, trials, discounts or upgrades in the listing or the skill.
 - Never put reviewer credentials, the demo video, client secrets or the domain verification token in the package; they go in the OpenAI dashboard. The verification token is served by the TryPost app at `https://app.trypost.it/.well-known/openai-apps-challenge`.
-- Build the upload with `node scripts/build.ts`: it writes `build/trypost-plugin.zip` (git-ignored) from `HEAD`. The list of packed paths lives only in `scripts/build.ts` (`pluginPaths`); `tests/build.test.ts` checks it covers everything the manifest references. Never commit the ZIP.
+- Build the upload with `node scripts/build.ts`: it writes `build/trypost-chatgpt.zip` (git-ignored) from `HEAD`. The list of packed paths lives only in `scripts/build.ts` (`pluginPaths`); `tests/build.test.ts` checks it covers everything the manifest references. Never commit the ZIP.
 
 ## Skill (`SKILL.md`)
 

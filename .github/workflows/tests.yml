@@ -73,9 +73,9 @@ jobs:
         run: node scripts/build.ts
 
       - name: List the ZIP
-        run: unzip -l build/trypost-plugin.zip
+        run: unzip -l build/trypost-chatgpt.zip
 
       - uses: actions/upload-artifact@v7
         with:
-          name: trypost-plugin
-          path: build/trypost-plugin.zip
+          name: trypost-chatgpt
+          path: build/trypost-chatgpt.zip

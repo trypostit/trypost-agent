@@ -6,7 +6,7 @@ export const root = join(import.meta.dirname, '..');
 
 export const pluginPaths = ['.codex-plugin', '.mcp.json', 'skills', 'assets'];
 
-export const outputFile = 'build/trypost-plugin.zip';
+export const outputFile = 'build/trypost-chatgpt.zip';
 
 export const buildPluginZip = (): string => {
   mkdirSync(join(root, 'build'), { recursive: true });
