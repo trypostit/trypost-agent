@@ -14,11 +14,11 @@ jobs:
     name: Manifest and skill tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Run the test suite
         run: node --test
@@ -27,11 +27,11 @@ jobs:
     name: Claude plugin validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install Claude Code
         run: npm install --global @anthropic-ai/claude-code@2.1.285
@@ -47,7 +47,7 @@ jobs:
     name: OpenAI plugin package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the plugin ZIP
         run: git archive --format=zip --prefix=trypost/ -o trypost-plugin.zip HEAD .codex-plugin .mcp.json skills assets
@@ -59,7 +59,7 @@ jobs:
             unzip -l trypost-plugin.zip "$file" > /dev/null || { echo "::error::$file is missing from the ZIP"; exit 1; }
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: trypost-plugin
           path: trypost-plugin.zip
