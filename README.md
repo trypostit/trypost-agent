@@ -134,7 +134,20 @@ skills/trypost/     Agent skill (SKILL.md)
 mcp.json            Shared MCP server definition
 assets/             Logo and icons
 SKILL.md            Same skill, repo root (npx skills add / OpenClaw)
+tests/              Manifest, MCP, skill and packaging tests (node --test)
 ```
+
+---
+
+## Development
+
+The tests use Node's built-in runner, with no dependencies:
+
+```bash
+node --test
+```
+
+CI (`.github/workflows/tests.yml`) runs them on every pull request, validates the Claude plugin with `claude plugin validate --strict`, and builds the OpenAI plugin ZIP as an artifact.
 
 ---
 
