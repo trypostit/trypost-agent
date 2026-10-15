@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "trypost": {
+      "url": "https://app.trypost.it/mcp/trypost",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "dcr"
+            }
+          }
+        }
+      }
+    }
+  }
+}

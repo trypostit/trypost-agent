@@ -1,0 +1,101 @@
+{
+  "name": "trypost",
+  "version": "1.1.0",
+  "description": "Plan, schedule and publish social media posts, manage your queue and approvals, and read post analytics in TryPost.",
+  "author": {
+    "name": "TryPost",
+    "email": "paulo@trypost.it",
+    "url": "https://trypost.it"
+  },
+  "homepage": "https://trypost.it",
+  "repository": "https://github.com/trypostit/trypost-agent",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "trypost",
+    "social-media",
+    "scheduling",
+    "publishing",
+    "analytics"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "TryPost",
+    "shortDescription": "Schedule social media posts",
+    "longDescription": "Connect your TryPost workspace and manage your social media from a conversation.\n\nWrite posts for the channels you connected to TryPost. Preview them, attach media, then save as drafts, publish now, schedule for a set time or add them to each channel's queue.\n\nRun your workflow end to end: reorder the queue, set posting times, approve or reject posts from team members, set recurring posts, and plan content on the ideas board with stages and labels.\n\nAsk how your content performs: get reports for a period, per-channel insights and metrics for each post.\n\nTryPost acts only within the workspace you sign in to and with your permissions in it. Members who need approval still go through it. Requires a TryPost account with at least one connected channel.",
+    "developerName": "TryPost",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://trypost.it",
+    "supportURL": "https://docs.trypost.it",
+    "privacyPolicyURL": "https://trypost.it/privacy",
+    "termsOfServiceURL": "https://trypost.it/terms",
+    "defaultPrompt": [
+      "Show me what is scheduled on my channels this week.",
+      "Write a LinkedIn post about our new feature and schedule it for tomorrow at 9am.",
+      "Which of my posts got the most engagement in the last 30 days?"
+    ],
+    "brandColor": "#3660E0",
+    "composerIcon": "./assets/icon-512.png",
+    "logo": "./assets/icon-512.png"
+  },
+  "extensions": {
+    "com.openai": {
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the connected channels",
+              "prompt": "Which social media channels are connected to my TryPost workspace?",
+              "tools_triggered": "list-social-accounts-tool",
+              "expected_behavior": "Lists the channels connected to the test workspace with their network and username, and points out any channel that needs to be reconnected."
+            },
+            {
+              "description": "Create a draft and preview it",
+              "prompt": "Write a short LinkedIn post announcing our new pricing page and save it as a draft. Show me how it will look.",
+              "tools_triggered": "list-social-accounts-tool, create-post-tool, preview-post-tool",
+              "expected_behavior": "Creates one draft post on the LinkedIn channel and shows the preview of the exact text LinkedIn will receive. Nothing is published."
+            },
+            {
+              "description": "Schedule a post for a set time",
+              "prompt": "Schedule a post on my X account for tomorrow at 9am saying our office is closed for the holiday.",
+              "tools_triggered": "list-social-accounts-tool, create-post-tool",
+              "expected_behavior": "Creates a scheduled post on the X channel at 9am tomorrow in the user's time zone and confirms the scheduled time."
+            },
+            {
+              "description": "Add a post to a channel's queue",
+              "prompt": "Add a post about our summer sale to the next free slot of my Instagram queue.",
+              "tools_triggered": "list-social-accounts-tool, list-free-slots-tool, create-post-tool",
+              "expected_behavior": "Finds the next free queue slot of the Instagram channel and creates the post there, or explains that the channel needs media or posting times before it can be queued."
+            },
+            {
+              "description": "Review post performance",
+              "prompt": "Which of my posts got the most engagement in the last 30 days, and on which channels?",
+              "tools_triggered": "get-analytics-report-tool",
+              "expected_behavior": "Returns the analytics report for the last 30 days and summarizes the top posts with their channel and engagement figures, without inventing numbers."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Buying followers or engagement is not supported",
+              "prompt": "Buy 1,000 followers for my Instagram account."
+            },
+            {
+              "description": "Generating images or videos is not supported",
+              "prompt": "Generate an image of a beach sunset and post it to my Facebook page."
+            },
+            {
+              "description": "Reading another person's private account is not supported",
+              "prompt": "Show me the scheduled posts of my competitor's Instagram account."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "TryPost does not sell products or process payments in ChatGPT."
+      },
+      "publication": {
+        "release_notes": "Initial release: create, preview, schedule, queue and publish posts, manage approvals and the ideas board, and read analytics."
+      }
+    }
+  }
+}
