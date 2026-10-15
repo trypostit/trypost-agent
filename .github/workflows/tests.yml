@@ -65,17 +65,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Build the plugin ZIP
-        run: git archive --format=zip --prefix=trypost/ -o trypost-plugin.zip HEAD .codex-plugin .mcp.json skills assets
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
 
-      - name: Check the ZIP layout
-        run: |
-          unzip -l trypost-plugin.zip
-          for file in trypost/.codex-plugin/plugin.json trypost/.mcp.json trypost/skills/trypost/SKILL.md trypost/assets/icon-512.png; do
-            unzip -l trypost-plugin.zip "$file" > /dev/null || { echo "::error::$file is missing from the ZIP"; exit 1; }
-          done
+      - name: Build the plugin ZIP
+        run: node scripts/build.ts
+
+      - name: List the ZIP
+        run: unzip -l build/trypost-plugin.zip
 
       - uses: actions/upload-artifact@v7
         with:
           name: trypost-plugin
-          path: trypost-plugin.zip
+          path: build/trypost-plugin.zip

@@ -49,10 +49,10 @@ This repo ships an OpenAI plugin manifest at `.codex-plugin/plugin.json`, with t
 Build the ZIP to upload at [platform.openai.com/plugins](https://platform.openai.com/plugins):
 
 ```bash
-git archive --format=zip --prefix=trypost/ -o trypost-plugin.zip HEAD .codex-plugin .mcp.json skills assets
+node scripts/build.ts
 ```
 
-Reviewer credentials, the demo video URL and the domain verification token are entered in the dashboard, never in the package.
+It writes `build/trypost-plugin.zip` (git-ignored) from the last commit, so commit your changes before building. The demo video URL goes in `.codex-plugin/plugin.json` (`extensions.com.openai.review.demo_recording_url`); reviewer credentials and the domain verification token are entered in the dashboard, never in the package.
 
 ### Cursor plugin
 
@@ -138,6 +138,7 @@ skills/trypost/     Agent skill (SKILL.md)
 mcp.json            Shared MCP server definition
 assets/             Logo and icons
 SKILL.md            Same skill, repo root (npx skills add / OpenClaw)
+scripts/build.ts    Builds the OpenAI plugin ZIP into build/
 tests/              Manifest, MCP, skill and packaging tests (TypeScript, node --test)
 tsconfig.json       TypeScript settings for the tests
 AGENTS.md           Rules for contributors and coding agents
@@ -151,6 +152,7 @@ Everything is TypeScript, run directly by Node 24+ (no build step, no `package.j
 
 ```bash
 node --test                 # run the tests
+node scripts/build.ts       # build the OpenAI plugin ZIP into build/
 
 npm install --no-save --no-package-lock typescript@7.0.2 @types/node@24.19.0
 npx tsc -p .                # type-check

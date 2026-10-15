@@ -44,7 +44,7 @@ This repository packages TryPost as a plugin for Claude Code, Cursor, Grok, Chat
 | Manifest and skill tests | `node --test` |
 | TypeScript type check | `tsc -p .` |
 | Claude plugin validation | `claude plugin validate --strict` on the plugin, its marketplace and its skills, with a pinned Claude Code version |
-| OpenAI plugin package | Builds the upload ZIP, checks its layout and attaches it to the run |
+| OpenAI plugin package | Builds the upload ZIP with `node scripts/build.ts` and attaches it to the run |
 
 - Pin every tool and action: exact versions for npm packages, a major tag for GitHub actions. Pick versions released at least two weeks earlier.
 - `.github/workflows/sync-skill.yml` copies the root `SKILL.md` into `skills/trypost/SKILL.md` on each release. Still keep both files identical in every commit; a test compares them.
@@ -63,7 +63,7 @@ This repository packages TryPost as a plugin for Claude Code, Cursor, Grok, Chat
 - Review needs exactly five positive and three negative test cases. Positive cases name tools the skill documents.
 - Never mention prices, plans, trials, discounts or upgrades in the listing or the skill.
 - Never put reviewer credentials, the demo video, client secrets or the domain verification token in the package; they go in the OpenAI dashboard. The verification token is served by the TryPost app at `https://app.trypost.it/.well-known/openai-apps-challenge`.
-- Build the upload with the command in the README; a test checks that it packs everything the manifest references.
+- Build the upload with `node scripts/build.ts`: it writes `build/trypost-plugin.zip` (git-ignored) from `HEAD`. The list of packed paths lives only in `scripts/build.ts` (`pluginPaths`); `tests/build.test.ts` checks it covers everything the manifest references. Never commit the ZIP.
 
 ## Skill (`SKILL.md`)
 

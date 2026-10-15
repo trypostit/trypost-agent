@@ -3,7 +3,9 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
@@ -12,5 +14,8 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true
   },
-  "include": ["tests/**/*.ts"]
+  "include": [
+    "scripts/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }

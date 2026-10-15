@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { describe, test } from 'node:test';
 
-import { exists, networkCount, read, readJson, root, sizeOf } from './helpers.ts';
-import type { PluginManifest } from './types.ts';
+import { exists, networkCount, read, root, sizeOf } from './helpers.ts';
 
 const git = (...args: string[]): string[] =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
@@ -20,24 +19,6 @@ describe('README', () => {
 
   test('never counts networks', () => {
     assert.doesNotMatch(readme, networkCount);
-  });
-
-  test('the ZIP command packs everything the OpenAI manifest needs', () => {
-    const [, paths = ''] = readme.match(/git archive .+ HEAD (.+)/) ?? [];
-    const packed = paths.split(' ');
-    const manifest = readJson<PluginManifest>('.codex-plugin/plugin.json');
-    const needed = ['.codex-plugin', '.mcp.json', 'skills', manifest.interface?.logo, manifest.interface?.composerIcon];
-
-    assert.ok(packed.every(exists), `the README packs a path that does not exist: ${packed.join(', ')}`);
-
-    for (const entry of needed) {
-      const file = entry?.replace(/^\.\//, '') ?? '';
-
-      assert.ok(
-        packed.some((path) => file === path || file.startsWith(`${path}/`)),
-        `${file} is not packed`,
-      );
-    }
   });
 });
 
