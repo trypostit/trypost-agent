@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "trypost": {
+      "type": "http",
       "url": "https://app.trypost.it/mcp/trypost",
       "extensions": {
         "com.openai": {
