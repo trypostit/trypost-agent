@@ -1,270 +1,254 @@
 ---
 name: trypost
-description: Schedules and publishes social media posts through TryPost's hosted MCP server. Use when the user wants to draft, schedule, publish, preview, or analyze posts across Instagram, Facebook, LinkedIn, LinkedIn Page, X, TikTok, YouTube, Threads, Pinterest, Bluesky, Mastodon, Telegram, or Discord, or when they mention TryPost, social accounts, signatures, labels, webhooks, or repurpose.
+description: Schedules and publishes social media posts through TryPost's hosted MCP server. Use when the user wants to draft, schedule, queue, publish, approve, preview, or analyze posts on Instagram, Facebook Pages, LinkedIn (profiles and pages), X, TikTok, YouTube Shorts, Threads, Pinterest, Bluesky, Mastodon, Telegram, Discord, or Google Business Profile, or when they mention TryPost, the posting queue, approvals, ideas, labels, signatures, analytics, repurpose, or webhooks.
 homepage: https://trypost.it
 metadata: {"openclaw":{"emoji":"📅","requires":{"bins":[],"env":[]}}}
 ---
 
 # TryPost
 
-TryPost schedules and publishes to 12 networks from one workspace. This plugin registers the hosted MCP server `https://app.trypost.it/mcp/trypost`. On first tool call the client opens a browser for OAuth (`mcp:use`). Do **not** put a Personal Access Token on the MCP URL — API keys are REST-only and return `403`. Cloud MCP requires an active plan (`402` if missing).
+TryPost schedules and publishes social posts from one workspace. This plugin registers the hosted MCP server `https://app.trypost.it/mcp/trypost` (self-hosted: `{APP_URL}/mcp/trypost`).
 
 Docs: https://docs.trypost.it/ai/tools-reference
 App: https://app.trypost.it
-Site: https://trypost.it
 
-## Hard rules
+## Authentication
 
-**1 — Use MCP tools, never invent IDs.** Discover `social_account_id`, `content_type`, Pinterest `board_id`, and Discord `channel_id` from tools.
+- OAuth 2.1 with Dynamic Client Registration and PKCE, scope `mcp:use`. On the first call the client opens a browser: the user signs in, picks the **workspace** this connection may use, and authorizes. Every tool acts on that one workspace; to work in another, connect again and pick it.
+- API keys (Personal Access Tokens) are for the REST API only. Sent to the MCP endpoint they are refused with `403` `MCP OAuth authorization required.`
+- Other HTTP errors: `401` (token missing, expired or revoked, or the bound workspace was deleted: reconnect), `403` `Workspace access denied.` (the user no longer belongs to the workspace), `402` `Active subscription required.` (TryPost Cloud account without app access; self-hosted skips this check).
+- Times in arguments are ISO 8601; without an offset they are read as UTC. Post times in responses are UTC (`Y-m-d H:i:s`). No tool returns the user's own time zone; each channel's zone is `timezone` in `list-social-accounts-tool`.
 
-**2 — `create-post-tool` always creates a draft.** `scheduled_at` on create is stored on the draft and does **not** queue publishing. Call `publish-post-tool` to publish now or schedule.
+## Permissions
 
-**3 — No `media[]` on create/update.** Attach after create with `attach-media-from-url-tool`, `attach-existing-asset-tool`, or `request-media-upload-tool` + `attach-media-from-upload-tool`. There is no detach/remove-media tool.
+`get-workspace-tool` returns `me.is_admin`, `me.requires_approval` and `me.publishes_directly`.
 
-**4 — Required meta before publish** (validated by `publish-post-tool`; missing values fail):
+| Who | Can call |
+|---|---|
+| Any member | Posts (create, update, publish, preview, delete, media, notes, metrics), ideas and stages, analytics, labels, signatures, accounts and posting-schedule reads, free slots, Pinterest boards, Discord channels, TikTok creator info, Instagram audio, content types, workspace |
+| Members who publish directly (owner, admins, members without approval) | Also `approve-post-tool`, `reject-post-tool`, `set-post-recurrence-tool`, `reorder-queue-tool`, `move-post-to-slot-tool`, every repurpose tool |
+| Admins (and the account owner) | Also `update-posting-schedule-tool`, `generate-posting-schedule-tool`, `copy-posting-schedule-tool`, every webhook tool, every API key tool |
 
-| Platform | Required `platforms[].meta` | How to resolve |
-|---|---|---|
-| TikTok | `privacy_level` | `"PUBLIC_TO_EVERYONE"`, `"MUTUAL_FOLLOW_FRIENDS"`, `"FOLLOWER_OF_CREATOR"`, `"SELF_ONLY"` |
-| Pinterest | `board_id` | `list-pinterest-boards-tool` |
-| Discord | `channel_id` | `list-discord-channels-tool` |
+A refused call returns a tool error (`This action is unauthorized.`). Ids from another workspace answer as not found.
 
-**5 — Call `list-content-types-tool` before choosing `content_type`.** Honor `requires_media`, `min_media_count`, `max_media_count`, `accept_*`, `accepts_gif` / `accepts_mov`, `forbids_mixed_media`, and duration/size caps. There are **20** content types. There is no `instagram_carousel` / `linkedin_carousel` — carousels are `instagram_feed` / `linkedin_post` with multiple images or a LinkedIn PDF.
+## The post model
 
-**6 — Confirm destructive tools** (`publish-post-tool`, `delete-*`, `rotate-webhook-secret-tool`) with the user before calling.
+- A post has exactly **one channel**: `social_account_id`, `content_type` and `meta` sit at the top level of the post. The channel of an existing post cannot change.
+- `create-post-tool` creates one post on one channel. `create-posts-tool` creates **one independent post per destination**; the posts share a `post_group_id` and are then edited, published, approved and deleted one by one.
+- `status` (lifecycle): `draft`, `pending_approval`, `scheduled`, `publishing`, `published`, `failed`. The channel side of a post has its own publication status and `error_message` / `platform_url` (see `get-post-tool`).
+- Create and update take `status`: `draft` (default on create), `scheduled` (with `scheduled_at`, `queue` or `queue_slot`), or `publishing` (publish now). `publish-post-tool` does the same for an existing draft or scheduled post.
+- Posts that are `publishing`, `published` or `failed` cannot be changed or deleted. Deleting a post never removes it from the network.
 
-## Core workflow
+## Workflow
 
 ```
-1. get-workspace-tool
-2. list-social-accounts-tool
-3. list-content-types-tool
-4. list-pinterest-boards-tool / list-discord-channels-tool if needed
-5. create-post-tool                   # draft + platforms + meta
-6. attach media (URL / library / signed upload)
-7. preview-post-tool
-8. publish-post-tool                  # omit scheduled_at = now; ISO 8601 future = queue
-9. get-post-metrics-tool              # after published
+1. get-workspace-tool             # does the caller need approval?
+2. list-social-accounts-tool      # channel id, status, timezone, max_content_length, has_posting_schedule
+3. list-content-types-tool        # content_type, media rules, required_meta
+4. resolve required meta          # get-tiktok-creator-info-tool / list-pinterest-boards-tool / list-discord-channels-tool
+5. create-post-tool or create-posts-tool   # status draft | scheduled | publishing
+6. preview-post-tool              # exact text the network gets, with length stats
+7. publish-post-tool              # for drafts: now, scheduled_at, or queue
+8. get-post-metrics-tool          # after it is published
 ```
 
-Prefer public URLs or the Asset Library. Use signed upload only for a local file with no public URL.
+Accounts with `status` `token_expired` or `disconnected` must be reconnected in the TryPost app; MCP cannot connect, reconnect or disconnect channels.
 
-## Authentication and roles
+## Networks and content types
 
-OAuth 2.1 + Dynamic Client Registration. First tool call opens the browser. Re-auth on `401`. `403` with "MCP OAuth authorization required" means an API key was sent — remove it. `402` means the Cloud account has no active plan.
-
-Workspace is bound to the OAuth grant. Switch workspace in the TryPost UI (Settings → MCP) and reconnect.
-
-| Role | Can |
-|---|---|
-| Viewer | Read posts/accounts/workspace. Cannot create/update/publish, list assets, list boards/channels, or manage repurpose/webhooks/keys. |
-| Member | Posts, media, labels, signatures, repurpose. Cannot toggle accounts, webhooks, or API keys. |
-| Owner / Admin | Everything, including `toggle-social-account-tool`, webhooks, and API keys. |
-
-Connect or disconnect networks in the TryPost app (Accounts). MCP can only list and toggle active/inactive.
-
-## Not in MCP
-
-Do not invent tools for: connecting accounts, detaching media, duplicating a post, post templates, brand profile, Unsplash/Giphy, team invites, billing, in-app AI generation, or account-level analytics. Metrics are per published post via `get-post-metrics-tool` only. Signatures have no `signature_id` on create/update — append the text to `content` yourself.
-
-## Networks
-
-`list-social-accounts-tool` returns connected accounts (`id`, `platform`, `display_name`, `username`, `is_active`, `status`). `status` is `connected` \| `disconnected` \| `token_expired`. Skip expired/disconnected accounts and tell the user to reconnect in the app (Accounts). Platform slugs:
-
-| Slug | Network |
-|---|---|
-| `instagram` | Instagram personal |
-| `instagram-facebook` | Instagram Business via Facebook Page (same content types as Instagram) |
-| `facebook` | Facebook **Page** (not a personal profile) |
-| `linkedin` | LinkedIn profile → `linkedin_post` |
-| `linkedin-page` | LinkedIn Page → `linkedin_page_post` |
-| `x` | X |
-| `threads` | Threads |
-| `tiktok` | TikTok |
-| `youtube` | YouTube Shorts only |
-| `pinterest` | Pinterest |
-| `bluesky` | Bluesky |
-| `mastodon` | Mastodon |
-| `telegram` | Telegram channel or group |
-| `discord` | Discord server |
-
-| Network | Content types | Media required | Notes |
+| `platform` | Network | Content types | Text limit |
 |---|---|---|---|
-| Instagram | `instagram_feed`, `instagram_reel`, `instagram_story` | yes | Stories have no viewer-facing caption. Reels are video-only. Feed carousel = multiple images on `instagram_feed`. |
-| Facebook | `facebook_post`, `facebook_reel`, `facebook_story` | reel/story yes; post no | Reels/stories are video-only. |
-| LinkedIn | `linkedin_post` | no | Images XOR one video XOR one PDF. `document_title` for PDFs. |
-| LinkedIn Page | `linkedin_page_post` | no | Same media rules as LinkedIn. |
-| X | `x_post` | no | Max 4 media. Links are defused at publish/preview. |
-| Threads | `threads_post` | no | |
-| TikTok | `tiktok_video`, `tiktok_photo` | yes | `privacy_level` required to publish. Video is video-only; photo is images (min 1). |
-| YouTube | `youtube_short` | yes | Video-only, max ~3 min. `content` is required. Title = first line of `content` (hard cap ~100). |
-| Pinterest | `pinterest_pin`, `pinterest_video_pin`, `pinterest_carousel` | yes | `board_id` required. Pin description = post `content`. Carousel needs ≥2 images. |
-| Bluesky | `bluesky_post` | no | No mixed image+video. Max 4 media. |
-| Mastodon | `mastodon_post` | no | Max 4 media. |
-| Telegram | `telegram_post` | no | HTML sanitization at preview/publish. |
-| Discord | `discord_message` | no | `channel_id` required. Channels are text/announcement the bot can post to. |
+| `instagram` | Instagram (Instagram Login) | `instagram_feed`, `instagram_reel`, `instagram_story` | 2200, max 5 hashtags |
+| `instagram-facebook` | Instagram connected through a Facebook Page | same as `instagram` | 2200, max 5 hashtags |
+| `facebook` | Facebook Page | `facebook_post`, `facebook_reel`, `facebook_story` | 10000 |
+| `linkedin` | LinkedIn profile | `linkedin_post` | 3000 |
+| `linkedin-page` | LinkedIn Page | `linkedin_page_post` | 3000 |
+| `x` | X | `x_post` | 280 (25000 for accounts with `long_posts`) |
+| `threads` | Threads | `threads_post`, `threads_ghost_post` | 500 |
+| `tiktok` | TikTok | `tiktok_video`, `tiktok_photo` | 2200 |
+| `youtube` | YouTube | `youtube_short` | 5000 |
+| `pinterest` | Pinterest | `pinterest_pin`, `pinterest_video_pin`, `pinterest_carousel` | 800 |
+| `bluesky` | Bluesky | `bluesky_post` | 300 |
+| `mastodon` | Mastodon | `mastodon_post` | 500 |
+| `telegram` | Telegram | `telegram_post` | 4096 |
+| `discord` | Discord | `discord_message` | 2000 |
+| `google_business` | Google Business Profile | `google_business_post` | 1500 |
 
-Always confirm live limits with `list-content-types-tool`. Hard caps vary a lot (X 280, Bluesky 300, Threads/Mastodon 500, YouTube ~100, LinkedIn 3000) — `preview-post-tool` is the check. GIFs stay GIFs only on X, Bluesky, Mastodon, Discord, and Telegram.
+The account's real limit is `max_content_length` in `list-social-accounts-tool`. `list-content-types-tool` is the live catalog; summary of the media rules:
 
-## Posts
+| Content type | Media |
+|---|---|
+| `instagram_feed` | Required. Up to 10 images/videos (carousel); a single video publishes as a Reel |
+| `instagram_reel`, `facebook_reel` | Required. One video |
+| `instagram_story`, `facebook_story` | Required. One image or video. Captionless: no text is sent or measured |
+| `facebook_post`, `threads_post` | Optional. Up to 10 images/videos |
+| `threads_ghost_post` | No media. Text-only post archived after 24 hours |
+| `linkedin_post`, `linkedin_page_post` | Optional. Up to 10 images, or one video, or one PDF (no mixing; a PDF must be alone) |
+| `x_post` | Optional. Up to 4; GIF accepted |
+| `bluesky_post` | Optional. Up to 4; GIF accepted; no image+video mix |
+| `mastodon_post` | Optional. Up to 4; GIF accepted |
+| `telegram_post`, `discord_message` | Optional. Up to 10; GIF accepted |
+| `tiktok_video` | Required. One video |
+| `tiktok_photo` | Required. 1 to 35 images |
+| `youtube_short` | Required. One video, up to 3 minutes |
+| `pinterest_pin` / `pinterest_video_pin` | Required. One image / one video |
+| `pinterest_carousel` | Required. 2 to 5 images |
+| `google_business_post` | Optional. One image |
+
+When `content_type` is omitted it is chosen like the web composer: Pinterest picks video pin / carousel / pin from the media, TikTok picks `tiktok_photo` for images only, every other network takes its `default_content_type`. Media rules (count, size, duration, aspect ratio, GIF, MOV) never block a draft; they are checked when a post is scheduled, queued or published.
+
+## Per-network `meta`
+
+Unknown keys are dropped. Enum values are exact strings. `update-post-tool` merges `meta` with the stored settings (`null` clears a key; `thread_replies` replaces the whole list).
+
+| Network | Keys | Required to schedule or publish |
+|---|---|---|
+| TikTok | `privacy_level` (`PUBLIC_TO_EVERYONE` \| `MUTUAL_FOLLOW_FRIENDS` \| `FOLLOWER_OF_CREATOR` \| `SELF_ONLY`, limited to the account's `privacy_level_options`), `allow_comments`, `disclose`, `brand_content_toggle`, `brand_organic_toggle`; video: `allow_duet`, `allow_stitch`, `is_aigc`; photo: `auto_add_music`. `SELF_ONLY` cannot be combined with `brand_content_toggle` | `privacy_level` |
+| Pinterest | `board_id`, `title` (max 100), `link`. The pin description is the post text | `board_id` |
+| Discord | `channel_id`, `mentions` (`[{token, label}]`), `embeds` (up to 10 `{title, description, url, image, color}`) | `channel_id` |
+| YouTube | `title` (max 100, no `<` `>`; defaults to the first non-empty line of the text), `description`, `category_id`, `privacy_status` (`public` \| `unlisted` \| `private`), `license`, `notify_subscribers`, `embeddable`, `made_for_kids`, `is_ai_generated` | A title, or text to derive it from |
+| Google Business | `topic_type` (`STANDARD` \| `EVENT` \| `OFFER`), `call_to_action` `{action_type, url}` (`NONE`, `BOOK`, `ORDER`, `SHOP`, `LEARN_MORE`, `SIGN_UP`, `CALL`; `url` needed unless `NONE`/`CALL`; not on `OFFER`), `event` `{title, start_date, end_date, start_time, end_time}`, `offer` `{coupon_code, redeem_online_url, terms_conditions}` | `event` on `EVENT` and `OFFER` |
+| Instagram | `is_ai_generated`, `collaborators` (up to 3 usernames; not on stories), reels only: `share_to_feed`, `trial_graduation` (`MANUAL` \| `SS_PERFORMANCE`; not with collaborators), `audio` | — |
+| X, Bluesky, Mastodon | `thread_replies` (see Threads below). X also `is_ai_generated`; Mastodon also `spoiler_text` (content warning, counts toward the 500) | — |
+| Threads | `topic_tag` (1–50 characters, no `.` or `&`) | — |
+| Facebook, Bluesky, LinkedIn | `link_preview` (`false` publishes the link without a preview card) | — |
+| LinkedIn, LinkedIn Page | `document_title` (max 300, for PDF posts) | — |
+| Telegram, Facebook reels and stories | none | — |
+
+Every scheduled or published post also needs text or media.
+
+**Instagram music**: `meta.audio` works only on `instagram_reel` posts from an `instagram-facebook` account. Find a track with `search-instagram-audio-tool` and pass `{id}` (optional `title`, `artist`, `cover_url`, `preview_url`, `audio_volume` / `video_volume` 0–100). On an `instagram` account it is refused.
+
+**Per-media settings** (`media[].meta`): `alt_text` (max 2000), `user_tags` (Instagram feed images: up to 20 `{username, x, y}`, x/y from 0 to 1), `cover_offset_ms` (video cover frame where `supports_video_cover`).
+
+### Threads (X, Bluesky, Mastodon)
+
+`meta.thread_replies` holds up to 24 replies published under the post, each `{text, media}` (up to 4 media items by `url`, `id` or `upload_token`) or a plain string for text only. Each reply needs text or media, fits the account's text limit, and follows the media rules of a post on that network.
+
+## Tools
+
+### Posts
 
 | Tool | Notes |
 |---|---|
-| `list-posts-tool` | Newest `scheduled_at` first. Filters: `status` (`draft` \| `scheduled` \| `published` \| `failed`), `search` (content substring), `limit` (1–100, default 50). `published` includes `partially_published`. No filter for `publishing`. No `page`. |
-| `get-post-tool` | Full post: platforms (with `meta` and `post_platform.id`), media, labels. Status may be `draft`, `scheduled`, `publishing`, `published`, `partially_published`, or `failed`. |
-| `create-post-tool` | Optional `content` (max 10 000), optional `scheduled_at`, `label_ids[]`, `platforms[]` (`social_account_id` + `content_type` + optional `meta`). Platforms may be omitted (empty draft). Inactive accounts and mismatched types are rejected. |
-| `update-post-tool` | `post_id` plus fields to change. Platform entries use `id` (the `post_platform` UUID). Platforms not listed are **disabled**. `meta` is merged; send `null` to clear a key. `label_ids[]` **replaces** all labels. `status` may be `draft` (unschedule) or `scheduled` only. Setting `scheduled` validates media vs every enabled type. Cannot edit a finalized / publishing post. |
-| `publish-post-tool` | Needs ≥1 enabled platform. Validates required meta and media vs each content type. |
-| `preview-post-tool` | Same sanitization as publish (LinkedIn Unicode bold, Telegram HTML, X link defusing). Nothing is truncated — compare `sanitized_length` vs `max_content_length`. |
-| `delete-post-tool` | Permanent. |
-| `get-post-metrics-tool` | Engagement on a published post. Platforms without post-level metrics return `unsupported`. |
+| `list-posts-tool` | Newest scheduled date first. Filters: `status` (`draft` \| `scheduled` \| `pending_approval` \| `published` \| `failed`), `search`, `channels[]`, `labels[]`, `untagged`, `page` |
+| `get-post-tool` | Text, media, labels, status, `schedule_mode`, `scheduled_at`, `published_at`, recurrence, approval fields, `post_group_id`, and the channel's `content_type`, `meta`, status, `error_message`, `platform_url` |
+| `create-post-tool` | `social_account_id` (required), `content`, `media[]`, `content_type`, `meta`, `status`, `scheduled_at`, `queue` (`next` \| `top`), `queue_slot`, `label_ids[]` |
+| `create-posts-tool` | `status` (required), `destinations[]` (required: `{social_account_id, content_type?, content?, media?, meta?}`), shared `content`, `media[]`, `scheduled_at`, `queue`, `label_ids[]`. No `queue_slot`. Returns `{posts}` |
+| `update-post-tool` | `post_id` plus any of `content`, `media[]` (replaces the list), `content_type`, `meta` (merged), `status`, `scheduled_at`, `queue`, `label_ids[]` (replaces). `status: draft` unschedules |
+| `publish-post-tool` | `post_id`, optional `scheduled_at` or `queue`; omit both to publish now. Validated like a scheduled post; on failure nothing is published and the error names the field |
+| `preview-post-tool` | The exact text the network gets (X links shown defused when that is enabled) with length stats. Nothing is truncated |
+| `delete-post-tool` | Permanent, TryPost only |
+| `get-post-metrics-tool` | Saved analytics of a published post; `unsupported` for unpublished posts or networks without analytics |
+| `approve-post-tool` | `post_id`, optional `scheduled_at` or `publish_now`. Required when the requested time has passed or the author asked to publish now |
+| `reject-post-tool` | Back to draft for its author; no reason stored |
+| `set-post-recurrence-tool` | Scheduled post repeats every `interval` (1–365) `frequency` (`day` \| `week` \| `month` \| `year`), `times` (1–100) more times; last occurrence on or before 2037-12-31 |
+| `clear-post-recurrence-tool` | Stops repeating; the post keeps its time |
+| `list-post-notes-tool` / `create-post-note-tool` / `update-post-note-tool` / `delete-post-note-tool` | Internal team comments, never published. `body` max 2000. Only the author edits or deletes a note |
 
 ### Media
 
-Attach only to `draft` or `scheduled` posts. Published / partially published / failed / publishing are rejected.
-
-| Tool | When |
-|---|---|
-| `attach-media-from-url-tool` | Public HTTP(S) URLs. `urls`: `[{url, alt?}]`, max 10. JPEG/PNG/GIF/WebP, MP4/MOV, PDF. Returns `attached_count` and `failed_urls`. |
-| `list-assets-tool` | Workspace library (not logos/avatars). Filters: `search` (filename), `type` (`image` \| `video` \| `document`), `limit` (1–100, default 50). Returns `has_more`. No `page`. |
-| `get-asset-tool` | One library item by `asset_id`. |
-| `attach-existing-asset-tool` | Reuse a library item (`post_id`, `asset_id`, optional `alt`). Does not copy bytes. Same pair again does not duplicate. |
-| `request-media-upload-tool` | Signed one-shot POST URL (~15 min). Returns `upload_token`, `upload_url`, `field_name` (`media`), `max_bytes`, `max_bytes_by_type`. |
-| `attach-media-from-upload-tool` | After the file is POSTed: `post_id` + `upload_token` + optional `alt`. |
-
-Image alt lives on `media[].meta.alt_text`, set via the attach tools' `alt` field (ignored for video/PDF). There is no MCP tool to remove an attached file.
-
-Local upload: `curl -F media=@./clip.mp4 "$UPLOAD_URL"` then `attach-media-from-upload-tool`.
-
-## Per-platform `meta`
-
-Unknown keys are dropped. Enums are exact JSON strings.
-
-| Platform | Optional | Required on publish |
-|---|---|---|
-| Instagram / Facebook | `aspect_ratio`: `"1:1"` \| `"4:5"` \| `"16:9"` \| `"original"` | — |
-| LinkedIn / LinkedIn Page | `document_title` (PDF, max 300) | — |
-| TikTok | `allow_comments`, `allow_duet`, `allow_stitch`, `auto_add_music`, `is_aigc`, `disclose`, `brand_content_toggle`, `brand_organic_toggle` | `privacy_level` |
-| Pinterest | `title` (max 100), `link` (http/https). Description = post `content`. | `board_id` |
-| Discord | `channel_name`, `mentions` (`[{token,label}]`), `embeds` (max 10: `{title,description,url,image,color}`) | `channel_id` |
-
-X, Threads, YouTube, Bluesky, Mastodon, and Telegram have no `meta` keys.
-
-## Accounts, workspace, labels, signatures
+Media goes in `media[]` on create/update, each item with exactly one of `url` (public URL serving the file itself; no redirects, no web pages), `upload_token`, or `id` (media already in the workspace, copied for the post). Optional `alt` and `meta`. On update, send the current ids in a new order to reorder and leave one out to remove it.
 
 | Tool | Notes |
 |---|---|
-| `list-social-accounts-tool` | Connected accounts for this workspace. |
-| `toggle-social-account-tool` | Active/inactive. Owner/Admin. Inactive accounts are skipped at publish and rejected on create/update. |
-| `list-pinterest-boards-tool` | `account_id` → `{ boards: [{ id, name }], truncated }`. Use `id` as `meta.board_id`. Member+. |
-| `list-discord-channels-tool` | `account_id` → `{ channels: [{ id, name }] }`. Use `id` as `meta.channel_id`. Member+. |
-| `list-content-types-tool` | Live catalog: 20 types, lengths, default type, media caps per platform. |
-| `get-workspace-tool` | Current workspace (`id`, `name`, timestamps). |
-| `list-labels-tool` | Color tags. |
-| `create-label-tool` | `name`, `color` (`#RRGGBB`). |
-| `update-label-tool` | `label_id`, `name`, `color`. |
-| `delete-label-tool` | Detaches the label from posts. |
-| `list-signatures-tool` | Reusable hashtag/CTA blocks. |
-| `create-signature-tool` | `name`, `content`. |
-| `update-signature-tool` | `signature_id`, `name`, `content`. |
-| `delete-signature-tool` | Permanent. |
+| `attach-media-from-url-tool` | `post_id`, `urls[]` (1–10 `{url, alt?, meta?}`). Appends. Returns `attached_count`, `failed_urls` and `failures[]` (`unreachable`, `type_not_allowed`, `too_large`, `host_not_allowed`) |
+| `request-media-upload-tool` | One-shot signed URL for a local file: `upload_token`, `upload_url`, `field_name` (`media`), `expires_at` (15 minutes by default), `max_bytes`, `max_bytes_by_type` |
+| `attach-media-from-upload-tool` | `post_id`, `upload_token`, optional `alt`, `meta`. Appends |
 
-To apply a signature: `list-signatures-tool`, then put that `content` at the end of the post `content` on create or update.
+Local file: `request-media-upload-tool`, then `curl -F media=@./clip.mp4 "<upload_url>"`, then pass the `upload_token` in `media[]` or call `attach-media-from-upload-tool`. An upload is kept 24 hours and is spent by the first post that takes it; reuse the file on another post by its media `id`.
 
-## Repurpose
+Accepted files: JPEG, PNG, GIF, WebP (HEIC/HEIF when the server can convert), MP4, MOV, PDF. Server ceilings by default: 10 MB and 67 megapixels per image, 1 GB per video, 100 MB per PDF; each content type's own limits apply at schedule/publish time.
 
-Watches Instagram or Facebook videos posted *outside* TryPost and replicates them. Create as draft → destinations (video `content_type` + required destination meta) → `activate-repurpose-tool`. Only videos published after activate are copied. Videos already published through TryPost are skipped. Owner/Admin/Member.
+### Accounts, posting times and queue
 
 | Tool | Notes |
 |---|---|
-| `list-repurpose-source-formats-tool` | Watchable formats: `reel`, `video`, `story`. |
-| `list-repurposes-tool` | Newest first. Optional `page`. 25 per page. |
-| `get-repurpose-tool` | One row: source, destinations, status, last poll error. |
-| `create-repurpose-tool` | `source_social_account_id` (Instagram/Facebook), optional `source_format` (default `reel`), `publish_mode` (`publish` \| `draft`), `destinations[]`. One source+format per workspace. |
-| `update-repurpose-tool` | Changing source or format resets the watermark. |
-| `list-repurpose-items-tool` | Activity for one row. Look here when a video was not replicated. |
-| `activate-repurpose-tool` | Draft or disabled only. Needs a usable source, one destination, and required dest meta. Stamps watermark to now. |
-| `pause-repurpose-tool` | Keeps watermark. |
-| `resume-repurpose-tool` | User pause keeps watermark; system pause (`paused_reason` set) starts from now. |
-| `disable-repurpose-tool` | Clears watermark. |
-| `delete-repurpose-tool` | Stops polling. Calendar posts it already created stay. |
+| `list-social-accounts-tool` | `id`, `platform`, `display_name`, `username`, `status`, `timezone`, `posting_goal`, `has_posting_schedule`, `max_content_length`, `long_posts`, `verified_badge` |
+| `get-posting-schedule-tool` | `account_id`. Time zone, weekly goal, seven days of local times (day 0 = Sunday) |
+| `update-posting-schedule-tool` | `account_id`, `timezone` (IANA), `posting_goal` (1–28 or null), `posting_schedule` (7 `{day, enabled, times[]}`, max 4 `HH:mm` per day, or null to clear) |
+| `generate-posting-schedule-tool` | `account_id`, `mode` (`goal` \| `recommended`), `goal` (1–28). Builds from the network's recommended windows; replaces the schedule |
+| `copy-posting-schedule-tool` | `account_id`, `from` (a channel with a schedule) |
+| `list-free-slots-tool` | Next free slots as UTC instants: at most 30, within 90 days |
+| `move-post-to-slot-tool` | `account_id`, `post_id`, `slot_at`. A scheduled post becomes a queue post in that free slot |
+| `reorder-queue-tool` | `account_id`, `post_ids[]` (exactly the first queued posts, new order). Posts swap among the slots they hold |
+| `list-pinterest-boards-tool` / `create-pinterest-board-tool` | Board `id` → `meta.board_id`. Create takes `name` (max 50) |
+| `list-discord-channels-tool` | Text/announcement channels the bot can post to; `id` → `meta.channel_id` |
+| `get-tiktok-creator-info-tool` | `privacy_level_options`, `comment_disabled` / `duet_disabled` / `stitch_disabled` (keep the matching `allow_*` false), `max_video_post_duration_sec` (not checked at schedule time), `can_post` |
+| `search-instagram-audio-tool` | `account_id` (`instagram-facebook`), optional `q` (omit for trending), `type` (`music` \| `original_sound`) |
+| `get-instagram-audio-tool` | `account_id`, `audio_id`. Fails when the track is no longer available |
 
-## Webhooks
+### Ideas
 
-Outgoing workspace webhooks. Owner/Admin. Events: `post.created`, `post.scheduled`, `post.unscheduled`, `post.published`, `post.partially_published`, `post.failed`, `post.deleted`. No wildcard, no `publishing` event. HMAC-SHA256 of the raw body in `X-Webhook-Signature`. Pauses after 5 consecutive failures. Status is `enabled` \| `disabled` \| `paused` (`paused` is set by TryPost, not by update).
+`list-ideas-tool` (filters `stages[]`, `unassigned`, `labels[]`, `untagged`), `get-idea-tool`, `create-idea-tool` (`title`, `body`, `idea_stage_id`, `media_ids[]`, `label_ids[]`; needs a title, body or media), `update-idea-tool` (`media_ids` / `label_ids` replace), `duplicate-idea-tool`, `delete-ideas-tool` (up to 500), `move-ideas-tool` (`idea_id`, `idea_stage_id` or none, `idea_ids[]` = the full target column in order). Stages: `list-idea-stages-tool`, `create-idea-stage-tool` (`name` max 60), `update-idea-stage-tool`, `delete-idea-stage-tool` (ideas move to unassigned), `reorder-idea-stages-tool` (every stage id). Ideas cannot be converted into posts by MCP; create a post with the idea's text.
 
-| Tool | Notes |
-|---|---|
-| `list-webhooks-tool` | No signing secrets. |
-| `get-webhook-tool` | Includes `signing_secret`. |
-| `create-webhook-tool` | `endpoint` (public http/https) + `events[]`. Created `enabled`. Secret returned once. Does not ping. |
-| `update-webhook-tool` | `endpoint`, `events`, and/or `status` (`enabled` \| `disabled` — not `paused`). Re-enabling a paused webhook resets failure count. |
-| `send-webhook-test-tool` | Signed `webhook.test` ping. No delivery log. Works even if paused/disabled. |
-| `rotate-webhook-secret-tool` | Previous secret stops immediately. |
-| `list-webhook-logs-tool` | Newest first. Optional `limit` (1–100, default 50). |
-| `replay-webhook-log-tool` | Queues a new signed delivery (`replayed: true` = queued, not delivered). Does not re-enable a paused webhook. |
-| `delete-webhook-tool` | Deletes the webhook and its logs. |
+### Analytics
 
-## API keys
-
-These MCP tools manage Personal Access Tokens for the **REST API**. Never send that token to `/mcp/trypost`. Owner/Admin.
+Ranges: `range` `7d` \| `30d` (default) \| `mtd` \| `custom` with `start` / `end` (`YYYY-MM-DD`), as calendar days in the user's time zone.
 
 | Tool | Notes |
 |---|---|
-| `list-api-keys-tool` | Metadata only. OAuth session tokens are excluded. |
-| `create-api-key-tool` | `name`, optional `expires_at`. Returns `token` once (REST calls this `plain_token`). |
-| `delete-api-key-tool` | Immediate. Cannot revoke the current MCP OAuth session. |
+| `get-analytics-report-tool` | Workspace summary, follower and post charts, top posts, per-account performance. Optional `channels[]` |
+| `get-analytics-publication-tool` | `publication_id` from the report's top posts, including posts imported from the network |
+| `get-channel-insights-tool` | `account_id`; summary, metrics and series vs the previous range, plus 12-month follower `growth`. Filters `labels[]`, `untagged`, `types[]` |
+| `list-channel-publications-tool` | `account_id`; best posts ranked by `sort`, `period` `current` \| `previous`, top 50, paginated |
 
-## Patterns
+Channel insights and channel publications are not available for LinkedIn, LinkedIn Page, Telegram, Discord and Google Business.
 
-### Draft for LinkedIn + X
+### Repurpose
 
-1. `list-social-accounts-tool` → LinkedIn and X ids
-2. `create-post-tool` with `content` and both platforms
-3. Optional media attach
-4. `preview-post-tool` — if X is over `max_content_length`, shorten via `update-post-tool`
-5. `publish-post-tool` with `scheduled_at`, or omit for now
+Watches one Instagram or Facebook account for one format (`reel`, `video`, `story`) and republishes each new video to its destinations. Videos published through TryPost are never replicated.
 
-### TikTok video
+| Tool | Notes |
+|---|---|
+| `list-repurpose-source-formats-tool` | Watchable formats |
+| `list-repurposes-tool` / `get-repurpose-tool` | Rows with destinations, status and last polling error |
+| `create-repurpose-tool` | `source_social_account_id`, `source_format` (default `reel`), `publish_mode` (`publish` default \| `draft`), `destinations[]` (`{social_account_id, content_type, meta?}`, a type that accepts video). Starts as draft. One repurpose per source and format; the source cannot be a destination; Google Business cannot be a destination |
+| `update-repurpose-tool` | Changing source or format resets the watermark |
+| `activate-repurpose-tool` | Needs a usable source, one destination and the destinations' required meta. Only videos published from then on are copied |
+| `pause-repurpose-tool` / `resume-repurpose-tool` | Pause keeps the watermark; resuming a pause made by TryPost starts from now |
+| `disable-repurpose-tool` | Clears the watermark |
+| `list-repurpose-items-tool` | Every source video seen and why one was skipped |
+| `delete-repurpose-tool` | Stops polling; posts already created stay |
 
-1. Account + `tiktok_video`
-2. Create with `meta.privacy_level: "PUBLIC_TO_EVERYONE"` unless the user asked otherwise
-3. Attach video → preview → publish
+### Labels, signatures, workspace, platform
 
-### Pinterest / Discord
+| Tool | Notes |
+|---|---|
+| `list-labels-tool`, `create-label-tool`, `update-label-tool`, `delete-label-tool` | `name`, `color` (`#RRGGBB`). Deleting detaches the label from posts |
+| `list-signatures-tool`, `create-signature-tool`, `update-signature-tool`, `delete-signature-tool` | `name`, `content`. A signature is never added automatically: append its content to the post text |
+| `get-workspace-tool` | Current workspace and the caller's `me` flags |
+| `list-content-types-tool` | Per platform: `allowed_media_types`, `default_content_type`, `max_content_length`, `max_hashtags`, `alt_text_max_length`, `required_meta`. Per content type: media counts, accepted types, GIF/MOV, byte caps, duration, aspect ratios, `captionless`, `document_must_be_alone`, `supports_thread_replies` |
 
-Resolve `board_id` or `channel_id` first, set it on create, then attach required media (Pinterest) and publish.
+### Webhooks (admins)
 
-### Signature
+Events: `post.created`, `post.scheduled`, `post.unscheduled`, `post.published`, `post.failed`, `post.deleted`. Each delivery is a JSON POST signed in `X-Webhook-Signature` (HMAC-SHA256 hex of the body). After 5 failed deliveries in a row the webhook is `paused`.
 
-`list-signatures-tool` → append the chosen block to post `content` → preview (length may overflow X / Threads / YouTube).
+`list-webhooks-tool` (no secrets), `get-webhook-tool` (includes `signing_secret`), `create-webhook-tool` (`endpoint` public URL, `events[]`; created enabled; no test sent), `update-webhook-tool` (`endpoint`, `events`, `status` `enabled` \| `disabled`; re-enabling resets failures), `delete-webhook-tool` (with its logs), `send-webhook-test-tool` (signed `webhook.test` ping, no log), `rotate-webhook-secret-tool` (old secret stops at once), `list-webhook-logs-tool`, `replay-webhook-log-tool` (`webhook_id`, `log_id`; new delivery even when paused or disabled).
 
-### Unschedule
+### API keys (admins)
 
-`update-post-tool` with `status: "draft"`.
+Manage Personal Access Tokens for the REST API (never usable on MCP). `list-api-keys-tool` (metadata only; OAuth connections excluded), `create-api-key-tool` (`name`, optional `expires_at`; returns `plain_token` once), `delete-api-key-tool` (`api_key_id`; integrations using it stop working).
 
-### Local file
+## Queue and slots
 
-1. Create draft
-2. `request-media-upload-tool` → user runs `curl -F media=@file "$upload_url"`
-3. `attach-media-from-upload-tool` → preview → publish
+- The queue needs posting times on the channel (`has_posting_schedule`). `queue: next` takes the first free slot; `queue: top` takes the first slot and shifts the queued posts behind it to the next gap. Do not combine `queue` with `scheduled_at`.
+- `queue_slot` (create-post-tool) or `move-post-to-slot-tool` places a post in one exact free slot from `list-free-slots-tool`. A slot held by any scheduled post or by a queue request pending approval is refused.
+- A queued post keeps its slot. Deleting, drafting or re-timing it leaves the slot free; nothing is pulled forward. Schedule changes re-place only posts whose slot disappeared.
+
+## Approvals
+
+When `me.requires_approval` is true, scheduling, queueing or publishing stores the post as `pending_approval` instead (also when such a member edits a scheduled post or attaches media to it). A member who publishes directly then calls `approve-post-tool` or `reject-post-tool`. A pending queue request reserves its slot. Pending posts are visible to approvers and to the member who asked.
 
 ## Gotchas
 
-1. API key on MCP → `403`. OAuth only.
-2. Create does not publish. Always `publish-post-tool`.
-3. `scheduled_at` on create ≠ scheduled. Still a draft until publish.
-4. Update platforms: omit an entry and it is disabled. Resend every platform you want enabled.
-5. `update-post-tool` uses `post_platform.id`, not `social_account_id`.
-6. TikTok / Pinterest / Discord fail publish without required meta.
-7. Type must match the account (no `x_post` on LinkedIn; LinkedIn Page is `linkedin_page_post`).
-8. Inactive (`is_active=false`) or `token_expired` / `disconnected` accounts fail publish — reconnect in the app.
-9. Media type must be accepted by **every** enabled platform.
-10. Bluesky and LinkedIn forbid mixed image+video (or PDF) on one post.
-11. Stories have no viewer-facing caption.
-12. Preview does not truncate — you must shorten over-limit text.
-13. Cloud MCP needs an active plan (`402`).
-14. YouTube in TryPost is Shorts only (`youtube_short`). Title is the first line of `content`.
-15. Facebook is a Page. Instagram Business is `instagram-facebook`, not a separate content-type family.
-16. No MCP tool removes media or connects a new account.
-17. Members cannot manage webhooks, API keys, or toggle accounts.
+1. One post = one channel. For several channels use `create-posts-tool`; each result is a separate post sharing `post_group_id`.
+2. `create-post-tool` defaults to `draft`. Send `status: scheduled` / `publishing`, or call `publish-post-tool`.
+3. TikTok `privacy_level`, Pinterest `board_id`, Discord `channel_id`, YouTube title, and Google Business `event` (EVENT/OFFER) are required before scheduling or publishing.
+4. The text limit is per account: an X account without `long_posts` is 280. Instagram allows at most 5 hashtags. Stories send no text.
+5. `update-post-tool` `media[]` and `label_ids[]` replace the lists; `meta` merges.
+6. Instagram music needs an `instagram-facebook` account and an `instagram_reel`.
+7. YouTube is Shorts only (`youtube_short`, one video up to 3 minutes).
+8. Facebook is a Page, not a personal profile. Google Business Profile posts take at most one image.
+9. MCP cannot connect channels, generate content with AI, convert ideas into posts, or manage templates, members or billing; use the web app.
+10. `publish-post-tool`, `approve-post-tool`, `rotate-webhook-secret-tool` and the delete tools (except `delete-repurpose-tool`) are marked destructive; read tools are marked read-only.
