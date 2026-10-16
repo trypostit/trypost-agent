@@ -113,6 +113,10 @@ describe('OpenAI review', () => {
     }
   });
 
+  test('links a public https demo recording', () => {
+    assert.match(openai.review?.demo_recording_url ?? '', /^https:\/\/\S+$/);
+  });
+
   test('declares no commerce and keeps reviewer access out of the package', () => {
     assert.equal(openai.review?.commerce, false);
     assert.doesNotMatch(JSON.stringify(manifest), /test_credentials|reviewer_instructions|password/i);

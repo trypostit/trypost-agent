@@ -51,6 +51,7 @@ export type OpenAiSettings = {
   hooks?: unknown;
   apps?: unknown;
   review?: {
+    demo_recording_url?: string;
     test_cases?: {
       positive?: ReviewTestCase[];
       negative?: ReviewTestCase[];

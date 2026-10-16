@@ -1,6 +1,6 @@
 {
   "name": "trypost",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Plan, schedule and publish social media posts, manage your queue and approvals, and read post analytics in TryPost.",
   "author": {
     "name": "TryPost",
@@ -91,6 +91,7 @@
             }
           ]
         },
+        "demo_recording_url": "https://drive.google.com/file/d/1vq3Z9HHRRo2SBt_z2UxeGpN9HMbHPPyG/view?usp=sharing",
         "commerce": false,
         "commerce_description": "TryPost does not sell products or process payments in ChatGPT."
       },
