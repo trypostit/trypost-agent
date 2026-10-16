@@ -66,13 +66,14 @@ describe('skill tool names and sign-in', () => {
 
   test('asks to search for the tools before asking the user to sign in', () => {
     assert.ok(skill.indexOf("search the client's tools for `trypost`") > -1);
-    assert.ok(skill.indexOf("search the client's tools for `trypost`") < skill.indexOf('https://app.trypost.it/login'));
+    assert.ok(skill.indexOf("search the client's tools for `trypost`") < skill.indexOf("plugin or connector settings"));
   });
 
   test('explains where the tools come from and how the user signs in', () => {
     assert.ok(skill.includes('## Connecting'));
     assert.ok(skill.includes('mcp__trypost__list_social_accounts_tool'));
-    assert.ok(skill.includes('https://app.trypost.it/login'));
+    assert.ok(skill.includes('plugin or connector settings'));
+    assert.ok(!skill.includes('https://app.trypost.it/login'));
     assert.ok(skill.includes('https://app.trypost.it/register'));
   });
 });
@@ -104,11 +105,12 @@ describe('setup skill', () => {
 
   test('finds the tools first and asks to sign in only when they are missing', () => {
     assert.match(setup, /^1\. Find the TryPost tools first\./m);
-    assert.ok(setup.indexOf("Search the client's tools for `trypost`") < setup.indexOf('https://app.trypost.it/login'));
+    assert.ok(setup.indexOf("Search the client's tools for `trypost`") < setup.indexOf('connect TryPost from the plugin settings'));
   });
 
-  test('tells the user how to sign in and where to create an account', () => {
-    assert.ok(setup.includes('https://app.trypost.it/login'));
+  test('signs the user in through the plugin settings, never the website', () => {
+    assert.ok(setup.includes('connect TryPost from the plugin settings'));
+    assert.ok(!setup.includes('https://app.trypost.it/login'));
     assert.ok(setup.includes('https://app.trypost.it/register'));
   });
 });
