@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { describe, test } from 'node:test';
 
-import { buildPluginZip, outputFile, pluginPaths, root } from '../scripts/build.ts';
+import { buildPluginZip, outputFile, pluginPaths, root, timestamp } from '../scripts/build.ts';
 import { exists, read, readJson } from './helpers.ts';
 import type { PluginManifest } from './types.ts';
 
@@ -28,11 +29,21 @@ describe('OpenAI plugin build', () => {
     }
   });
 
+  test('names the ZIP trypost-chatgpt with the build time, so builds sort by date', () => {
+    const date = new Date(2026, 9, 5, 7, 8, 9);
+
+    assert.equal(timestamp(date), '20261005070809');
+    assert.equal(outputFile(date), 'build/trypost-chatgpt-20261005070809.zip');
+  });
+
   test('writes a ZIP into build/ with the plugin under one trypost/ folder', () => {
-    const file = buildPluginZip();
+    const date = new Date();
+    const file = buildPluginZip(date);
     const entries = zipEntries(file);
 
-    assert.equal(file, `${root}/${outputFile}`);
+    rmSync(file);
+
+    assert.equal(file, `${root}/${outputFile(date)}`);
 
     for (const entry of ['.codex-plugin/plugin.json', '.mcp.json', 'skills/trypost/SKILL.md', 'skills/setup/SKILL.md', 'assets/icon-512.png']) {
       assert.ok(entries.includes(`trypost/${entry}`), `trypost/${entry} is missing from the ZIP`);
@@ -49,7 +60,7 @@ describe('OpenAI plugin build', () => {
   });
 
   test('keeps the build output out of git', () => {
-    assert.doesNotThrow(() => execFileSync('git', ['check-ignore', '--quiet', outputFile], { cwd: root }));
+    assert.doesNotThrow(() => execFileSync('git', ['check-ignore', '--quiet', outputFile()], { cwd: root }));
   });
 
   test('the README builds the ZIP with the script', () => {

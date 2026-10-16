@@ -52,7 +52,7 @@ Build the ZIP to upload at [platform.openai.com/plugins](https://platform.openai
 node scripts/build.ts
 ```
 
-It writes `build/trypost-chatgpt.zip` (git-ignored) from the last commit, so commit your changes before building. The demo video URL goes in `.codex-plugin/plugin.json` (`extensions.com.openai.review.demo_recording_url`); reviewer credentials and the domain verification token are entered in the dashboard, never in the package.
+It writes `build/trypost-chatgpt-<YYYYMMDDHHMMSS>.zip` (git-ignored, named by build time so builds sort by date) from the last commit, so commit your changes before building. The demo video URL goes in `.codex-plugin/plugin.json` (`extensions.com.openai.review.demo_recording_url`); reviewer credentials and the domain verification token are entered in the dashboard, never in the package.
 
 ### Cursor plugin
 
